@@ -100,7 +100,7 @@ Parameters:
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase
       letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
       (-).
-    Default: aws-quickstart
+    Default: aws-ia-us-east-1
     Description: S3 bucket name for the Quick Start assets. This string can include
       numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
       or end with a hyphen (-).
@@ -129,7 +129,7 @@ Rules:
       AssertDescription: Replace directory with the directory name of your Amazon
         Connect instance.
 Conditions:
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
   HasS3KmsKey: !Not [!Equals [!Ref ConnectS3KmsArn, '']]
   HasKinesisKmsKey: !Not [!Equals [!Ref AgentEventStreamKmsArn, '']]
 Resources:
