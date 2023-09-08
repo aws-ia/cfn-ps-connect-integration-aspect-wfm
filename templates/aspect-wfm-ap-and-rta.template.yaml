@@ -1,0 +1,312 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Aspect WFM Agent Productivity Report Generator integration and Real-Time Adherence integration (qs-1s0oq6gs2)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Aspect WFM Configuration
+      Parameters:
+      - KdaApplicationName
+      - AspectApDataS3Prefix
+      - NumSQSQueues
+      - LambdaConfigLocation
+    - Label:
+        default: Amazon Connect Configuration
+      Parameters:
+      - ConnectS3Bucket
+      - ConnectS3Prefix
+      - ConnectS3KmsArn
+      - AgentEventStreamArn
+      - AgentEventStreamKmsArn
+      - AHGFilterLevel
+      - AHGFilterSeparator
+      - AHGFilterValues
+    - Label:
+        default: AWS Quick Start configuration
+      Parameters:
+      - QSS3BucketName
+      - QSS3BucketRegion
+      - QSS3KeyPrefix
+    ParameterLabels:
+      KdaApplicationName:
+        default: Aspect Kinesis Application Name
+      AspectApDataS3Prefix:
+        default: Aspect WFM Report Prefix
+      NumSQSQueues:
+        default: Number of SQS Queues
+      LambdaConfigLocation:
+        default: Write to SQS Flag Location
+      ConnectS3Bucket:
+        default: Amazon Connect Exported Reports Bucket
+      ConnectS3Prefix:
+        default: Amazon Connect Exported Reports Prefix
+      ConnectS3KmsArn:
+        default: Amazon Connect Exported Reports Bucket KMS Key ARN
+      AgentEventStreamArn:
+        default: Agent Event Kinesis Stream ARN
+      AgentEventStreamKmsArn:
+        default: Agent Event Kinesis Stream KMS Key ARN
+      AHGFilterLevel:
+        default: Agent Hierarchy Group Level
+      AHGFilterSeparator:
+        default: Agent Hierarchy Group filter value separator
+      AHGFilterValues:
+        default: Agent Hierarchy Group filter matching values
+      QSS3BucketName:
+        default: Quick Start S3 Bucket Name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
+      QSS3KeyPrefix:
+        default: Quick Start S3 Key Prefix
+Parameters:
+  KdaApplicationName:
+    Type: String
+    Default: aspect-wfm-ap
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-.]*[0-9a-zA-Z])*$
+    Description: Enter the name of the Kinesis Data Analytics application to create.  This
+      string can include numbers, lowercase letters, uppercase letters, and hyphens
+      (-). It cannot start or end with a hyphen (-).  If you have multiple Amazon
+      Connect instances in your AWS account, you will need to create a Kinesis Data
+      Analytics application for each Amazon Connect instance and give each application
+      a unique name.  The Kinesis Firehose Data Delivery stream that writes agent
+      status reports to S3 is named based on the application name.  The name of the
+      Firehose stream determines the filenames of agent productivity report files
+      written to S3.  By default, WFM Adapter expects the report files to be named
+      based on an application name of "aspect-wfm-ap". If you specify a different
+      application name, be sure to update the WFM Adapter configuration for the corresponding
+      data source to match your application name, in the Firehose Report Mapping data
+      source parameter.  Consult the WFM Adapter help for more information.
+  AspectApDataS3Prefix:
+    Type: String
+    Default: OUTPUT/
+    Description: Enter the prefix for Aspect WFM Agent Productivity reports written
+      to S3.  You should configure the corresponding WFM Adapter data source to match
+      this value, in the Firehose Report Root Path data source parameter.
+  NumSQSQueues:
+    Description: The number of SQS queues to create (must be between 1 and 10). Creating additional SQS queues can reduce the latency of state changes.
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+    ConstraintDescription: Must be a number between 1 and 10.
+  LambdaConfigLocation:
+    Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
+      SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
+      to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer
+      permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
+      default, this flag will be stored in an environment variable of the RTA Lambda.
+    Type: String
+    Default: env
+    AllowedValues:
+      - env
+      - tab
+  ConnectS3Bucket:
+    Type: String
+    Description: Enter the name of the Exported reports S3 bucket of your Amazon Connect instance.
+  ConnectS3Prefix:
+    Type: String
+    Default: connect/directory/Reports/Aspect/
+    Description: Enter the prefix under which the exported reports read by WFM Adapter will be
+      exported, in the Exported reports bucket of your Amazon Connect instance.
+  ConnectS3KmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      the exported reports of your Amazon Connect instance. You should supply this ARN
+      if you configured your exported reports bucket to use server-side encryption with an
+      AWS Key Management Service (KMS) key. Otherwise, you should leave this parameter
+      blank.
+  AgentEventStreamArn:
+    Type: String
+    Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream
+      to which Amazon Connect delivers Agent Events.
+  AgentEventStreamKmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      agent events. You should supply this ARN if you configured your Agent Event Kinesis
+      stream to use server-side encryption with an AWS Key Management Service (KMS) key.
+      Otherwise, you should leave this parameter blank.
+  AHGFilterLevel:
+    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5).
+      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will
+      be filtered based on that Agent Hierarchy Group Level.
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 5
+    ConstraintDescription: Must be a number between 0 and 5.
+  AHGFilterSeparator:
+    Description: Character used to separate matching values listed in AHGFilterValues. You should configure a separator
+      character that does not appear in any of the individual matching values.
+    Type: String
+    Default: ","
+    MinLength: 1
+    MaxLength: 1
+  AHGFilterValues:
+    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group
+      filtering, any agent events with an Agent Hierarchy Group Level value matching one of the values listed here will
+      be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
+      values should be separated with the character configured in AHGFilterSeparator.
+    Type: String
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: connect-integration-aspect-wfm/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+Rules:
+  ParameterDefaults:
+    Assertions:
+    - Assert:
+        Fn::Not:
+        - Fn::Equals:
+          - Ref: ConnectS3Prefix
+          - connect/directory/Reports/Aspect/
+      AssertDescription: Replace directory with the directory name of your Amazon Connect instance.
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+Resources:
+  ApStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/aspect-wfm-ap-kda.template.yaml'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        KdaApplicationName: !Ref KdaApplicationName
+        AspectApDataS3Prefix: !Ref AspectApDataS3Prefix
+        ConnectS3Bucket: !Ref ConnectS3Bucket
+        ConnectS3Prefix: !Ref ConnectS3Prefix
+        ConnectS3KmsArn: !Ref ConnectS3KmsArn
+        AgentEventStreamArn: !Ref AgentEventStreamArn
+        AgentEventStreamKmsArn: !Ref AgentEventStreamKmsArn
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+  RtaStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/aspect-wfm-rta.template.yaml'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        AgentEventStreamArn: !Ref AgentEventStreamArn
+        AgentEventStreamKmsArn: !Ref AgentEventStreamKmsArn
+        NumSQSQueues: !Ref NumSQSQueues
+        LambdaConfigLocation: !Ref LambdaConfigLocation
+        AHGFilterLevel: !Ref AHGFilterLevel
+        AHGFilterSeparator: !Ref AHGFilterSeparator
+        AHGFilterValues: !Ref AHGFilterValues
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+Outputs:
+  APS3BucketName:
+    Value:
+      Fn::GetAtt:
+      - ApStack
+      - Outputs.APS3BucketName
+  ApplicationPhysicalResourceId:
+    Value:
+      Fn::GetAtt:
+      - ApStack
+      - Outputs.ApplicationPhysicalResourceId
+  WFMAdapterUserName:
+    Value:
+      Fn::GetAtt:
+      - ApStack
+      - Outputs.WFMAdapterUserName
+  DynamoDbTableName:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.DynamoDbTableName
+  ConfigTableName:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.ConfigTableName
+  SqsQueueUrl1:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl1
+  SqsQueueUrl2:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl2
+  SqsQueueUrl3:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl3
+  SqsQueueUrl4:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl4
+  SqsQueueUrl5:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl5
+  SqsQueueUrl6:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl6
+  SqsQueueUrl7:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl7
+  SqsQueueUrl8:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl8
+  SqsQueueUrl9:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl9
+  SqsQueueUrl10:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.SqsQueueUrl10
+  LambdaFunctionName:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.LambdaFunctionName
+  RTAUserName:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.RTAUserName
+...
