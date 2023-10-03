@@ -1,0 +1,558 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Aspect AWS Connect Real-Time Adherence integration (qs-1s0oq6gud)
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Aspect WFM Configuration
+      Parameters:
+        - NumSQSQueues
+        - LambdaConfigLocation
+    - Label:
+        default: Amazon Connect Configuration
+      Parameters:
+        - AgentEventStreamArn
+        - AgentEventStreamKmsArn
+        - AHGFilterLevel
+        - AHGFilterSeparator
+        - AHGFilterValues
+    - Label:
+        default: AWS Quick Start configuration
+      Parameters:
+        - QSS3BucketName
+        - QSS3BucketRegion
+        - QSS3KeyPrefix
+    ParameterLabels:
+      NumSQSQueues:
+        default: Number of SQS Queues
+      LambdaConfigLocation:
+        default: Write to SQS Flag Location
+      AgentEventStreamArn:
+        default: Agent Event Kinesis Stream ARN
+      AgentEventStreamKmsArn:
+        default: Agent Event Kinesis Stream KMS Key ARN
+      AHGFilterLevel:
+        default: Agent Hierarchy Group Level
+      AHGFilterSeparator:
+        default: Agent Hierarchy Group filter value separator
+      AHGFilterValues:
+        default: Agent Hierarchy Group filter matching values
+      QSS3BucketName:
+        default: Quick Start S3 Bucket Name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
+      QSS3KeyPrefix:
+        default: Quick Start S3 Key Prefix
+Parameters:
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Type: String
+  NumSQSQueues:
+    Description: The number of SQS queues to create (must be between 1 and 10). Creating additional SQS queues can reduce the latency of state changes.
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+    ConstraintDescription: Must be a number between 1 and 10.
+  LambdaConfigLocation:
+    Description: Once RTA reads an initial set of states from the agent event DynamoDB table, it toggles a Write to
+      SQS flag to ensure that agent events are written to the SQS queue(s). This setting controls where that Write
+      to SQS flag is stored either in an environment variable of the RTA Lambda (env) or in a configuration DynamoDB
+      table (table). Storing this flag in an environment variable of the Lambda requires less overhead, but requires
+      greater permissions for the RTA user. Storing this flag in a configuration DynamoDB table requires fewer
+      permissions for the RTA user, but requires an additional DyanmoDB read each time the RTA Lambda executes. By
+      default, this flag will be stored in an environment variable of the RTA Lambda.
+    Type: String
+    Default: env
+    AllowedValues:
+      - env
+      - tab
+  AgentEventStreamArn:
+    Type: String
+    Description: Enter the Amazon Resource Name (ARN) of the Amazon Kinesis Data Stream to which Amazon Connect delivers Agent Events.
+  AgentEventStreamKmsArn:
+    Type: String
+    Description: Optional Amazon Resource Name (ARN) of the KMS key required to decrypt
+      agent events. You should supply this ARN if you configured your Agent Event Kinesis
+      stream to use server-side encryption with an AWS Key Management Service (KMS) key.
+      Otherwise, you should leave this parameter blank.
+  AHGFilterLevel:
+    Description: The Agent Hierarchy Group Level on which agent events should be filtered (must be between 0 and 5).
+      Configuring a value of 0 disables filtering. Configuring a value between 1 and 5 means that agent events will
+      be filtered based on that Agent Hierarchy Group Level.
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 5
+    ConstraintDescription: Must be a number between 0 and 5.
+  AHGFilterSeparator:
+    Description: Character used to separate matching values listed in AHGFilterValues. You should configure a separator
+      character that does not appear in any of the individual matching values.
+    Type: String
+    Default: ","
+    MinLength: 1
+    MaxLength: 1
+  AHGFilterValues:
+    Description: An optional list of matching Agent Hierarchy Group Level values. If you enable Agent Hierarchy Group
+      filtering, any agent events with an Agent Hierarchy Group Level value matching one of the values listed here will
+      be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
+      values should be separated with the character configured in AHGFilterSeparator.
+    Type: String
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-ia-us-east-1
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: connect-integration-aspect-wfm/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
+  HasKinesisKmsKey: !Not [!Equals [!Ref AgentEventStreamKmsArn, '']]
+  CreateSqsQ2: !Not [!Equals [1, !Ref NumSQSQueues]]
+  CreateSqsQ3: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  CreateSqsQ4: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  - !Not [!Equals [3, !Ref NumSQSQueues]]
+  CreateSqsQ5: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  - !Not [!Equals [3, !Ref NumSQSQueues]]
+  - !Not [!Equals [4, !Ref NumSQSQueues]]
+  CreateSqsQ6: !And
+  - !Not [!Equals [1, !Ref NumSQSQueues]]
+  - !Not [!Equals [2, !Ref NumSQSQueues]]
+  - !Not [!Equals [3, !Ref NumSQSQueues]]
+  - !Not [!Equals [4, !Ref NumSQSQueues]]
+  - !Not [!Equals [5, !Ref NumSQSQueues]]
+  CreateSqsQ7: !Or
+  - !Equals [7, !Ref NumSQSQueues]
+  - !Equals [8, !Ref NumSQSQueues]
+  - !Equals [9, !Ref NumSQSQueues]
+  - !Equals [10, !Ref NumSQSQueues]
+  CreateSqsQ8: !Or
+  - !Equals [8, !Ref NumSQSQueues]
+  - !Equals [9, !Ref NumSQSQueues]
+  - !Equals [10, !Ref NumSQSQueues]
+  CreateSqsQ9: !Or
+  - !Equals [9, !Ref NumSQSQueues]
+  - !Equals [10, !Ref NumSQSQueues]
+  CreateSqsQ10: !Equals [10, !Ref NumSQSQueues]
+  FlagInEnv: !Equals ["env", !Ref LambdaConfigLocation]
+  FlagInTable: !Equals ["tab", !Ref LambdaConfigLocation]
+Resources:
+  LambdaZipsBucket:
+    Type: AWS::S3::Bucket
+  CopyZipsTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/lambda-copyzips/templates/copy-zips.template.yaml'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        SourceObjects: "functions/packages/real-time-adherence/AspectKinesisLambda.zip"
+  DynamoDbAgentEvent:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "AgentARN"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "AgentARN"
+          KeyType: "HASH"
+      BillingMode: "PAY_PER_REQUEST"
+  DynamoDbConfig:
+    Condition: FlagInTable
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: "Setting"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "Setting"
+          KeyType: "HASH"
+      BillingMode: "PAY_PER_REQUEST"
+  SqsQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ2:
+    Condition: CreateSqsQ2
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ3:
+    Condition: CreateSqsQ3
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ4:
+    Condition: CreateSqsQ4
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ5:
+    Condition: CreateSqsQ5
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ6:
+    Condition: CreateSqsQ6
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ7:
+    Condition: CreateSqsQ7
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ8:
+    Condition: CreateSqsQ8
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ9:
+    Condition: CreateSqsQ9
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  SqsQ10:
+    Condition: CreateSqsQ10
+    Type: AWS::SQS::Queue
+    Properties:
+      ContentBasedDeduplication: true
+      DelaySeconds: 0
+      FifoQueue: true
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      ReceiveMessageWaitTimeSeconds: 0
+      VisibilityTimeout: 30
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaKinesisExecutionRole'
+  LambdaWriteSqsPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - SqsQ
+    Properties:
+      PolicyName: Lambda_WriteSqsPolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+       Version: '2012-10-17'
+       Statement:
+       - Effect: Allow
+         Action:
+         - sqs:SendMessage
+         Resource:
+         - Fn::GetAtt: SqsQ.Arn
+         - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
+         - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
+  LambdaReadWriteAgentEventTablePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbAgentEvent
+    Properties:
+      PolicyName: Lambda_ReadWriteAgentEventTablePolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
+          Resource:
+          - Fn::GetAtt: DynamoDbAgentEvent.Arn
+  LambdaReadConfigTablePolicy:
+    Condition: FlagInTable
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbConfig
+    Properties:
+      PolicyName: Lambda_ReadConfigTablePolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:GetItem
+          - dynamodb:Query
+          Resource:
+          - Fn::GetAtt: DynamoDbConfig.Arn
+  LambdaDecryptKinesisPolicy:
+    Condition: HasKinesisKmsKey
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: Lambda_DecryptKinesisPolicy
+      Roles:
+      - !Ref LambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          - kms:GenerateDataKey
+          Resource:
+          - !Ref AgentEventStreamKmsArn
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - CopyZipsTemplate
+    Properties:
+      Handler: >-
+        AspectKinesisLamda::AspectKinesisLamda.ProcessKinesisEvents::AspectKinesisHandler
+      Runtime: dotnet6
+      Code:
+        S3Bucket: !GetAtt CopyZipsTemplate.Outputs.LambdaZipsBucket
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/real-time-adherence/AspectKinesisLambda.zip'
+      Description: Send agent events to SQS Queue and update initial set in DynamoDB Table
+      MemorySize: 256
+      Timeout: 30
+      Role: !GetAtt LambdaRole.Arn
+      Environment:
+        Variables:
+          DynamoDbTableName: !Ref DynamoDbAgentEvent
+          LogLevel: Debug
+          SqsQueueMessageGroupId: AspectConnectEventsForWfmRTListen_GroupId
+          NumSqsQueues: !Ref NumSQSQueues
+          SqsQueueUrl1: !Ref SqsQ
+          SqsQueueUrl2: !If [CreateSqsQ2, !Ref SqsQ2, !Ref "AWS::NoValue"]
+          SqsQueueUrl3: !If [CreateSqsQ3, !Ref SqsQ3, !Ref "AWS::NoValue"]
+          SqsQueueUrl4: !If [CreateSqsQ4, !Ref SqsQ4, !Ref "AWS::NoValue"]
+          SqsQueueUrl5: !If [CreateSqsQ5, !Ref SqsQ5, !Ref "AWS::NoValue"]
+          SqsQueueUrl6: !If [CreateSqsQ6, !Ref SqsQ6, !Ref "AWS::NoValue"]
+          SqsQueueUrl7: !If [CreateSqsQ7, !Ref SqsQ7, !Ref "AWS::NoValue"]
+          SqsQueueUrl8: !If [CreateSqsQ8, !Ref SqsQ8, !Ref "AWS::NoValue"]
+          SqsQueueUrl9: !If [CreateSqsQ9, !Ref SqsQ9, !Ref "AWS::NoValue"]
+          SqsQueueUrl10: !If [CreateSqsQ10, !Ref SqsQ10, !Ref "AWS::NoValue"]
+          AhgFilterLevel: !Ref AHGFilterLevel
+          AhgFilterSeparator: !Ref AHGFilterSeparator
+          AhgFilterValues: !Ref AHGFilterValues
+          ConfigTableName: !If [FlagInTable, !Ref DynamoDbConfig, !Ref "AWS::NoValue"]
+          WriteEventsToQueue: 'False'
+  LambdaKinesisStream:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Ref: AgentEventStreamArn
+      FunctionName: !Ref LambdaFunction
+      StartingPosition: TRIM_HORIZON
+  RtaUser:
+    Type: AWS::IAM::User
+  RtaReadAgentEventTablePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbAgentEvent
+    Properties:
+      PolicyName: RTA_ReadAgentEventTablePolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:GetItem
+          - dynamodb:Scan
+          Resource:
+          - Fn::GetAtt: DynamoDbAgentEvent.Arn
+  RtaReadWriteConfigTablePolicy:
+    Condition: FlagInTable
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - DynamoDbConfig
+    Properties:
+      PolicyName: RTA_ReadWriteConfigTablePolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:DescribeTable
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:UpdateItem
+          Resource:
+          - Fn::GetAtt: DynamoDbConfig.Arn
+  RtaReadWriteQueuePolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - SqsQ
+    Properties:
+      PolicyName: RTA_ReadWriteSqsPolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - sqs:DeleteMessage
+          - sqs:GetQueueUrl
+          - sqs:PurgeQueue
+          - sqs:ReceiveMessage
+          Resource:
+          - Fn::GetAtt: SqsQ.Arn
+          - !If [CreateSqsQ2, Fn::GetAtt: SqsQ2.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ3, Fn::GetAtt: SqsQ3.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ4, Fn::GetAtt: SqsQ4.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ5, Fn::GetAtt: SqsQ5.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ6, Fn::GetAtt: SqsQ6.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ7, Fn::GetAtt: SqsQ7.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ8, Fn::GetAtt: SqsQ8.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ9, Fn::GetAtt: SqsQ9.Arn, !Ref "AWS::NoValue"]
+          - !If [CreateSqsQ10, Fn::GetAtt: SqsQ10.Arn, !Ref "AWS::NoValue"]
+  RtaReadWriteLambdaConfigPolicy:
+    Condition: FlagInEnv
+    Type: AWS::IAM::Policy
+    DependsOn:
+    - LambdaFunction
+    Properties:
+      PolicyName: RTA_ReadWriteLambdaConfigurationPolicy
+      Users:
+      - !Ref RtaUser
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Action:
+          - lambda:GetFunctionConfiguration
+          - lambda:UpdateFunctionConfiguration
+          Resource:
+          - Fn::GetAtt: LambdaFunction.Arn
+Outputs:
+  DynamoDbTableName:
+    Value: !Ref DynamoDbAgentEvent
+  ConfigTableName:
+    Value: !If [FlagInTable, !Ref DynamoDbConfig, ""]
+  SqsQueueUrl1:
+    Value: !Ref SqsQ
+  SqsQueueUrl2:
+    Value: !If [CreateSqsQ2, !Ref SqsQ2, ""]
+  SqsQueueUrl3:
+    Value: !If [CreateSqsQ3, !Ref SqsQ3, ""]
+  SqsQueueUrl4:
+    Value: !If [CreateSqsQ4, !Ref SqsQ4, ""]
+  SqsQueueUrl5:
+    Value: !If [CreateSqsQ5, !Ref SqsQ5, ""]
+  SqsQueueUrl6:
+    Value: !If [CreateSqsQ6, !Ref SqsQ6, ""]
+  SqsQueueUrl7:
+    Value: !If [CreateSqsQ7, !Ref SqsQ7, ""]
+  SqsQueueUrl8:
+    Value: !If [CreateSqsQ8, !Ref SqsQ8, ""]
+  SqsQueueUrl9:
+    Value: !If [CreateSqsQ9, !Ref SqsQ9, ""]
+  SqsQueueUrl10:
+    Value: !If [CreateSqsQ10, !Ref SqsQ10, ""]
+  LambdaFunctionName:
+    Value: !Ref LambdaFunction
+  RTAUserName:
+    Value: !Ref RtaUser
+...

@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <DebugType>Full</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AwsLoggerFacade.cs" />
+    <Compile Remove="ILoggerFacade.cs" />
+    <Compile Remove="NLoggerFacade.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="serverless.template" />
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.0.0" />
+    <PackageReference Include="Amazon.Lambda.KinesisEvents" Version="2.0.0" />
+		<PackageReference Include="Amazon.Lambda.Serialization.Json" Version="2.0.0" />
+		<PackageReference Include="AWSSDK.Core" Version="3.7.0.45" />
+    <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.0.44" />
+    <PackageReference Include="AWSSDK.Kinesis" Version="3.7.0.43" />
+    <PackageReference Include="AWSSDK.SQS" Version="3.7.0.44" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <DotNetCliToolReference Include="Amazon.Lambda.Tools" Version="2.1.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspectAwsLambdaLogger\AspectAwsLambdaLogger.csproj" />
+  </ItemGroup>
+
+</Project>
