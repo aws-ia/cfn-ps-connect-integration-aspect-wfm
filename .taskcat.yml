@@ -1,5 +1,5 @@
 project:
-  name: connect-integration-aspect-wfm
+  name: cfn-ps-connect-integration-aspect-wfm
   owner: support@aspect.com
   package_lambda: false
   regions:
