@@ -1,6 +1,6 @@
 project:
   name: cfn-ps-connect-integration-aspect-wfm
-  owner: support@aspect.com
+  owner: support@alvaria.com
   package_lambda: false
   regions:
   - us-east-1
@@ -8,10 +8,17 @@ tests:
   default:
     parameters:
       FirehoseStreamName: tcat-$[taskcat_random-string]
-      SignedOutStatuses: 'Offline'
+      SignedOutStatuses: ''
+      NumSQSQueues: 1
+      LambdaConfigLocation: tab
       ConnectS3Bucket: tcat-$[taskcat_random-string]
       ConnectS3Prefix: tcat-$[taskcat_random-string]/
       ConnectS3KmsArn: ''
+      AHGFilterLevel: 0
+      AHGFilterValues: ''
+      AuthorizationMode: User
+      SourceAwsAccountId: ''
+      ExternalId: ''
       QSS3BucketName: $[taskcat_autobucket]
       QSS3BucketRegion: $[taskcat_current_region]
     regions:
@@ -19,4 +26,4 @@ tests:
     - us-west-2
     - eu-central-1
     - ap-southeast-2
-    template: templates/aspect-wfm-ap-kda-create-stream.template.yaml
+    template: templates/aspect-wfm-ap-and-rta-create-stream.template.yaml
