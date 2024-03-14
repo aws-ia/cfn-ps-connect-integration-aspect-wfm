@@ -21,6 +21,12 @@ Metadata:
       - AgentEventStreamArn
       - AgentEventStreamKmsArn
     - Label:
+        default: IAM Configuration
+      Parameters:
+        - AuthorizationMode
+        - SourceAwsAccountId
+        - ExternalId
+    - Label:
         default: AWS Quick Start configuration
       Parameters:
         - QSS3BucketName
@@ -45,6 +51,12 @@ Metadata:
         default: Agent Event Kinesis Stream ARN
       AgentEventStreamKmsArn:
         default: Agent Event Kinesis Stream KMS Key ARN
+      AuthorizationMode:
+        default: Authorization Mode
+      SourceAwsAccountId:
+        default: Source AWS Account ID
+      ExternalId:
+        default: External ID
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3BucketRegion:
@@ -114,6 +126,33 @@ Parameters:
       agent events. You should supply this ARN if you configured your Agent Event Kinesis
       stream to use server-side encryption with an AWS Key Management Service (KMS) key.
       Otherwise, you should leave this parameter blank.
+  AuthorizationMode:
+    Type: String
+    Description: Select User to create an IAM User for WFM Adapter. Select Role to create
+      an IAM Role for WFM Adapter. If WFM Adapter is running outside of AWS, you should
+      select User. If WFM Adapter is running inside AWS, you should select Role.
+    Default: User
+    AllowedValues:
+      - User
+      - Role
+  SourceAwsAccountId:
+    Type: String
+    AllowedPattern: (^$|^[0-9]{12}$)
+    ConstraintDescription: If Authorization Mode is User, Source AWS Account ID should be
+      blank. If Authorization Mode is Role, Source AWS Account ID should be a 12-digit
+      number.
+    Description: Optional AWS account ID to include in the trust policy for the IAM Role.
+      The AWS account ID should match the AWS account from which WFM Adapter will assume
+      the role. This parameter is required when Authorization Mode is Role. This parameter 
+      will be ignored when Authorization Mode is User.
+  ExternalId:
+    Type: String
+    AllowedPattern: '^[0-9a-zA-Z+=,.@:\/-]*$'
+    ConstraintDescription: 'External ID values can include numbers, lowercase letters, uppercase letters, and the following special characters: + = , . @ : / -'
+    Description: Optional external ID to include in the trust policy for the IAM Role. If
+      Authorization Mode is Role, the role will be configured to require this external ID. 
+      You will need to configure WFM Adapter to supply this external ID when it assumes the 
+      role. If Authorization Mode is User, this parameter will be ignored.
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase
@@ -147,10 +186,20 @@ Rules:
           - connect/directory/Reports/Alvaria/
       AssertDescription: Replace directory with the directory name of your Amazon
         Connect instance.
+  RoleRequiredParameters:
+    RuleCondition: !Equals [!Ref AuthorizationMode, 'Role']
+    Assertions:
+    - Assert: !Not [!Equals [!Ref SourceAwsAccountId, '']]
+      AssertDescription: Source AWS Account ID is required when Authorization Mode
+        is Role.
+    - Assert: !Not [!Equals [!Ref ExternalId, '']]
+      AssertDescription: External ID is required when Authorization Mode is Role.
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia']
   HasS3KmsKey: !Not [!Equals [!Ref ConnectS3KmsArn, '']]
   HasKinesisKmsKey: !Not [!Equals [!Ref AgentEventStreamKmsArn, '']]
+  CreateUser: !Equals [!Ref AuthorizationMode, 'User']
+  CreateRole: !Equals [!Ref AuthorizationMode, 'Role']
 Resources:
   S3Bucket:
     Type: AWS::S3::Bucket
@@ -379,15 +428,35 @@ Resources:
       FunctionName: !Ref KinesisLambdaFunction
       StartingPosition: LATEST
   WFMAdapterUser:
+    Condition: CreateUser
     Type: AWS::IAM::User
+  WFMAdapterRole:
+    Condition: CreateRole
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            AWS: 
+              !Sub
+                - "arn:aws:iam::${accountId}:root"
+                - accountId: !Ref SourceAwsAccountId
+          Action: sts:AssumeRole
+          Condition: 
+            StringEquals:
+              "sts:ExternalId": !Ref ExternalId
   WFMAdapterReadS3Policy:
     Type: AWS::IAM::Policy
     DependsOn:
     - S3Bucket
     Properties:
       PolicyName: WFMAdapter_ReadS3Policy
+      Roles:
+      - !If [CreateRole, !Ref WFMAdapterRole, !Ref 'AWS::NoValue']
       Users:
-      - !Ref WFMAdapterUser
+      - !If [CreateUser, !Ref WFMAdapterUser, !Ref 'AWS::NoValue']
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -405,8 +474,10 @@ Resources:
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: WFMAdapter_DecryptS3Policy
+      Roles:
+      - !If [CreateRole, !Ref WFMAdapterRole, !Ref 'AWS::NoValue']
       Users:
-      - !Ref WFMAdapterUser
+      - !If [CreateUser, !Ref WFMAdapterUser, !Ref 'AWS::NoValue']
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -425,4 +496,6 @@ Outputs:
   APKinesisLambdaFunctionName:
     Value: !Ref KinesisLambdaFunction
   WFMAdapterUserName:
-    Value: !Ref WFMAdapterUser
+    Value: !If [CreateUser, !Ref WFMAdapterUser, '']
+  WFMAdapterRoleARN:
+    Value: !If [CreateRole, !GetAtt WFMAdapterRole.Arn, '']

@@ -23,6 +23,12 @@ Metadata:
       - AHGFilterSeparator
       - AHGFilterValues
     - Label:
+        default: IAM Configuration
+      Parameters:
+        - AuthorizationMode
+        - SourceAwsAccountId
+        - ExternalId
+    - Label:
         default: AWS Quick Start configuration
       Parameters:
       - QSS3BucketName
@@ -53,6 +59,12 @@ Metadata:
         default: Agent Hierarchy Group filter value separator
       AHGFilterValues:
         default: Agent Hierarchy Group filter matching values
+      AuthorizationMode:
+        default: Authorization Mode
+      SourceAwsAccountId:
+        default: Source AWS Account ID
+      ExternalId:
+        default: External ID
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3BucketRegion:
@@ -153,6 +165,33 @@ Parameters:
       be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
       values should be separated with the character configured in AHGFilterSeparator.
     Type: String
+  AuthorizationMode:
+    Type: String
+    Description: Select User to create IAM Users for WFM Adapter and RTA. Select Role to create
+      IAM Roles for WFM Adapter and RTA. If WFM Adapter and RTA are running outside of AWS, you 
+      should select User. If WFM Adapter and RTA are running inside AWS, you should select Role.
+    Default: User
+    AllowedValues:
+      - User
+      - Role
+  SourceAwsAccountId:
+    Type: String
+    AllowedPattern: (^$|^[0-9]{12}$)
+    ConstraintDescription: If Authorization Mode is User, Source AWS Account ID should be
+      blank. If Authorization Mode is Role, Source AWS Account ID should be a 12-digit
+      number.
+    Description: Optional AWS account ID to include in the trust policy for the IAM Role.
+      The AWS account ID should match the AWS account from which WFM Adapter and RTA will 
+      assume their roles. This parameter is required when Authorization Mode is Role. This 
+      parameter will be ignored when Authorization Mode is User.
+  ExternalId:
+    Type: String
+    AllowedPattern: '^[0-9a-zA-Z+=,.@:\/-]*$'
+    ConstraintDescription: 'External ID values can include numbers, lowercase letters, uppercase letters, and the following special characters: + = , . @ : / -'
+    Description: Optional external ID to include in the trust policy for the IAM Roles. If
+      Authorization Mode is Role, the roles will be configured to require this external ID. 
+      You will need to configure WFM Adapter and RTA to supply this external ID when they assume 
+      their roles. If Authorization Mode is User, this parameter will be ignored.
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase
@@ -185,6 +224,14 @@ Rules:
           - Ref: ConnectS3Prefix
           - connect/directory/Reports/Alvaria/
       AssertDescription: Replace directory with the directory name of your Amazon Connect instance.
+  RoleRequiredParameters:
+    RuleCondition: !Equals [!Ref AuthorizationMode, 'Role']
+    Assertions:
+    - Assert: !Not [!Equals [!Ref SourceAwsAccountId, '']]
+      AssertDescription: Source AWS Account ID is required when Authorization Mode
+        is Role.
+    - Assert: !Not [!Equals [!Ref ExternalId, '']]
+      AssertDescription: External ID is required when Authorization Mode is Role.
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia']
 Resources:
@@ -212,6 +259,9 @@ Resources:
         ConnectS3Bucket: !Ref ConnectS3Bucket
         ConnectS3Prefix: !Ref ConnectS3Prefix
         ConnectS3KmsArn: !Ref ConnectS3KmsArn
+        AuthorizationMode: !Ref AuthorizationMode
+        SourceAwsAccountId: !Ref SourceAwsAccountId
+        ExternalId: !Ref ExternalId
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -234,6 +284,9 @@ Resources:
         AHGFilterLevel: !Ref AHGFilterLevel
         AHGFilterSeparator: !Ref AHGFilterSeparator
         AHGFilterValues: !Ref AHGFilterValues
+        AuthorizationMode: !Ref AuthorizationMode
+        SourceAwsAccountId: !Ref SourceAwsAccountId
+        ExternalId: !Ref ExternalId
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -268,6 +321,11 @@ Outputs:
       Fn::GetAtt:
       - ApStack
       - Outputs.WFMAdapterUserName
+  WFMAdapterRoleARN:
+    Value:
+      Fn::GetAtt:
+      - ApStack
+      - Outputs.WFMAdapterRoleARN
   DynamoDbTableName:
     Value:
       Fn::GetAtt:
@@ -338,4 +396,9 @@ Outputs:
       Fn::GetAtt:
       - RtaStack
       - Outputs.RTAUserName
+  RTARoleARN:
+    Value:
+      Fn::GetAtt:
+      - RtaStack
+      - Outputs.RTARoleARN
 ...
