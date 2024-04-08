@@ -16,6 +16,12 @@ Metadata:
           - AHGFilterSeparator
           - AHGFilterValues
       - Label:
+          default: IAM Configuration
+        Parameters:
+          - AuthorizationMode
+          - SourceAwsAccountId
+          - ExternalId
+      - Label:
           default: AWS Quick Start configuration
         Parameters:
           - QSS3BucketName
@@ -32,6 +38,12 @@ Metadata:
         default: Agent Hierarchy Group filter value separator
       AHGFilterValues:
         default: Agent Hierarchy Group filter matching values
+      AuthorizationMode:
+        default: Authorization Mode
+      SourceAwsAccountId:
+        default: Source AWS Account ID
+      ExternalId:
+        default: External ID
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3BucketRegion:
@@ -81,6 +93,33 @@ Parameters:
       be sent on to Real-Time Adherence and any agent events that do not match the filter will be discarded. Matching
       values should be separated with the character configured in AHGFilterSeparator.
     Type: String
+  AuthorizationMode:
+    Type: String
+    Description: Select User to create an IAM User for RTA. Select Role to create
+      an IAM Role for RTA. If RTA is running outside of AWS, you should
+      select User. If RTA is running inside AWS, you should select Role.
+    Default: User
+    AllowedValues:
+      - User
+      - Role
+  SourceAwsAccountId:
+    Type: String
+    AllowedPattern: (^$|^[0-9]{12}$)
+    ConstraintDescription: If Authorization Mode is User, Source AWS Account ID should be
+      blank. If Authorization Mode is Role, Source AWS Account ID should be a 12-digit
+      number.
+    Description: Optional AWS account ID to include in the trust policy for the IAM Role.
+      The AWS account ID should match the AWS account from which RTA will assume
+      the role. This parameter is required when Authorization Mode is Role. This parameter 
+      will be ignored when Authorization Mode is User.
+  ExternalId:
+    Type: String
+    AllowedPattern: '^[0-9a-zA-Z+=,.@:\/-]*$'
+    ConstraintDescription: 'External ID values can include numbers, lowercase letters, uppercase letters, and the following special characters: + = , . @ : / -'
+    Description: Optional external ID to include in the trust policy for the IAM Role. If
+      Authorization Mode is Role, the role will be configured to require this external ID. 
+      You will need to configure RTA to supply this external ID when it assumes the 
+      role. If Authorization Mode is User, this parameter will be ignored.
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription:
@@ -143,6 +182,9 @@ Resources:
         AHGFilterLevel: !Ref AHGFilterLevel
         AHGFilterSeparator: !Ref AHGFilterSeparator
         AHGFilterValues: !Ref AHGFilterValues
+        AuthorizationMode: !Ref AuthorizationMode
+        SourceAwsAccountId: !Ref SourceAwsAccountId
+        ExternalId: !Ref ExternalId
         QSS3BucketName: !Ref QSS3BucketName
         QSS3BucketRegion: !Ref QSS3BucketRegion
         QSS3KeyPrefix: !Ref QSS3KeyPrefix
@@ -227,3 +269,8 @@ Outputs:
       Fn::GetAtt:
         - WorkloadStack
         - Outputs.RTAUserName
+  RTARoleARN:
+    Value:
+      Fn::GetAtt:
+        - WorkloadStack
+        - Outputs.RTARoleARN
