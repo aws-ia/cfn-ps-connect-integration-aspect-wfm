@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="Asciidoctor 2.0.20">
-<meta name="description" content="Full Product Name Deployment Guide on AWS">
-<meta name="keywords" content="Partner Solution, AWS, Full Product Name">
-<title>Full Product Name on AWS</title>
+<meta name="generator" content="Asciidoctor 2.0.16">
+<meta name="description" content="Alvaria Workforce Management Deployment Guide on AWS">
+<meta name="keywords" content="Partner Solution, AWS, Alvaria Workforce Management">
+<title>Alvaria Workforce Management on AWS</title>
 <style>
 /* Asciidoctor default stylesheet | MIT License | https://asciidoctor.org */
 /* Uncomment @import statement to use as custom stylesheet */
@@ -857,10 +857,13 @@ p.footer-text a{color:#d7d8d8}
 <li><a href="#_overview">Overview</a></li>
 <li><a href="#_costs_and_licenses">Costs and licenses</a></li>
 <li><a href="#_architecture">Architecture</a></li>
-<li><a href="#_deployment_options">Deployment options</a></li>
-<li><a href="#_predeployment_steps">Predeployment steps</a></li>
+<li><a href="#_deployment_options">Deployment options</a>
+<ul class="sectlevel2">
+<li><a href="#_deploy_alvaria_wfm_with_a_new_kinesis_data_stream">Deploy Alvaria WFM with a new Kinesis data stream</a></li>
+<li><a href="#_deploy_alvaria_wfm_with_an_existing_kinesis_data_stream">Deploy Alvaria WFM with an existing Kinesis data stream</a></li>
+</ul>
+</li>
 <li><a href="#_deployment_steps">Deployment steps</a></li>
-<li><a href="#_postdeployment_steps">Postdeployment steps</a></li>
 <li><a href="#_troubleshooting">Troubleshooting</a></li>
 <li><a href="#_customer_responsibility">Customer responsibility</a></li>
 <li><a href="#_feedback">Feedback</a></li>
@@ -871,7 +874,7 @@ p.footer-text a{color:#d7d8d8}
 <div id="content">
 <div id="preamble">
 <div class="sectionbody">
-<h2 id="_full_product_name_on_aws" class="discrete text-center">Full Product Name on AWS</h2>
+<h2 id="_alvaria_workforce_management_on_aws" class="discrete text-center">Alvaria Workforce Management on AWS</h2>
 <h2 id="_partner_solution_deployment_guide" class="discrete text-left text-center">Partner Solution Deployment Guide</h2>
 <div class="imageblock text-center">
 <div class="content">
@@ -879,10 +882,8 @@ p.footer-text a{color:#d7d8d8}
 </div>
 </div>
 <div class="paragraph text-center">
-<p><strong>January 2023</strong><br>
-<em>John Smith, Example Company Name, Ltd.</em><br>
-<em>Janine Singh, AWS IoT Partner team</em><br>
-<em>Toni Jones, AWS Integration &amp; Automation team</em><br></p>
+<p><strong>May 2024</strong><br>
+<em>Alvaria Software</em><br></p>
 </div>
 <div class="imageblock text-left image-container">
 <div class="content">
@@ -902,7 +903,7 @@ Refer to the <a href="https://github.com/aws-ia/partner-solution-repo-name" targ
 </table>
 </div>
 <div class="paragraph text-left">
-<p>This Partner Solution was created by Example Company Name, Ltd. in collaboration with Amazon Web Services (AWS). <a href="https://aws.amazon.com/solutions/partners/" target="_blank" rel="noopener">Partner Solutions</a> are automated reference deployments that help people deploy popular technologies on AWS according to AWS best practices. If you&#8217;re unfamiliar with AWS Partner Solutions, refer to the <a href="https://fwd.aws/rA69w?" target="_blank" rel="noopener">AWS Partner Solution General Information Guide</a>.</p>
+<p>This Partner Solution was created by Alvaria Software in collaboration with Amazon Web Services (AWS). <a href="https://aws.amazon.com/solutions/partners/" target="_blank" rel="noopener">Partner Solutions</a> are automated reference deployments that help people deploy popular technologies on AWS according to AWS best practices. If you&#8217;re unfamiliar with AWS Partner Solutions, refer to the <a href="https://fwd.aws/rA69w?" target="_blank" rel="noopener">AWS Partner Solution General Information Guide</a>.</p>
 </div>
 </div>
 </div>
@@ -910,10 +911,18 @@ Refer to the <a href="https://github.com/aws-ia/partner-solution-repo-name" targ
 <h2 id="_overview">Overview</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>This guide covers the information you need to deploy the Full Product Name Partner Solution in the AWS Cloud.</p>
+<p>This Amazon Web Services (AWS) Partner Solution deploys <a href="https://www.alvaria.com/products/workforce-engagement-management/call-center-workforce-management">Alvaria Workforce Management (WFM)</a> integration with Amazon Connect. During deployment, you can choose one or both of the following Alvaria WFM integration options:</p>
 </div>
-<div class="paragraph">
-<p>This Amazon Web Services (AWS) Partner Solution deploys [&lt;product name&gt;](&lt;partner&#8217;s marketing product page&gt;) in the AWS Cloud so that &lt;purpose&gt;. This solution is for &lt;target users&gt; who want to &lt;do what&gt; so that &lt;why&gt;. For more information, refer to the [&lt;product name&gt; documentation](&lt;URL&gt;).</p>
+<div class="ulist">
+<ul>
+<li>
+<p><strong>Agent productivity</strong>: This option enhances standard Amazon Connect reports with agent-productivity statistics including average positions staffed (APS) by agent group, available time by agent, unavailable time by agent, and sign-in/sign-out pairs by agent. You specify Alvaria WFM to treat Amazon Connect agent status labels (such as "break" or "project") as available, productive, signed-in, or signed-out.</p>
+</li>
+<li>
+<p><strong>Alvaria Real-Time Adherence (RTA)</strong>: Choose this option to provide information about Amazon Connect agent state changes to Alvaria RTA. Alvaria RTA monitors Amazon Connect agent adherence to schedules.
+Both integration options use a single Amazon Connect agent event stream. You can choose to deploy the solution with a new or existing <a href="https://docs.aws.amazon.com/streams/latest/dev/introduction.html">Amazon Kinesis data stream</a> for this purpose. The deployment sizes the Kinesis data stream with a single shard. You can adjust the shard count for your agent event rate and number of consumers (agent productivity, Alvaria RTA, or custom agent-event readers). For more information, refer to the <a href="https://help.aspect.com/go/aspect/premiseportfolio.wem.wfintamzconnectconfig.workforceintegrationamazonconnectconfig">Alvaria Workforce Integrations for Amazon Connect Configuration Guide</a>.</p>
+</li>
+</ul>
 </div>
 </div>
 </div>
@@ -929,62 +938,91 @@ Refer to the <a href="https://github.com/aws-ia/partner-solution-repo-name" targ
 <h2 id="_architecture">Architecture</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Deploying this Partner Solution with default parameters builds the following Product Name environment in the
+<p>Deploying <strong>agent productivity integration</strong> builds the following Workforce Management environment in the
 AWS Cloud.</p>
 </div>
 <div id="architecture1" class="imageblock">
 <div class="content">
-<img src="docs/deployment_guide/images/architecture_diagram.png" alt="Architecture">
+<img src="docs/deployment_guide/images/architecture_diagram_1.png" alt="Architecture">
 </div>
-<div class="title">Figure 1. Partner Solution architecture for Product Name on AWS</div>
+<div class="title">Figure 1. Architecture for Workforce Management agent productivity integration on AWS</div>
 </div>
 <div class="paragraph">
-<p>As shown in <a href="#architecture1">Figure 1</a>, this Partner Solution sets up the following:</p>
+<p>As shown in <a href="#architecture1">Figure 1</a>, agent productivity integration sets up the following:</p>
 </div>
 <div class="ulist">
 <ul>
 <li>
-<p>A highly available architecture that spans two Availability Zones.*</p>
+<p>Amazon Connect to provide agent event stream read by a Kinesis AWS Lambda function.</p>
 </li>
 <li>
-<p>A virtual private cloud (VPC) configured with public and private subnets, according to AWS
-best practices, to provide you with your own virtual network on AWS.*</p>
+<p>Two Amazon Simple Storage Service (Amazon S3) buckets: one to store exported reports, and another for agent productivity data.</p>
 </li>
 <li>
-<p>In the public subnets:</p>
+<p>Two Lambda functions:</p>
 <div class="ulist">
 <ul>
 <li>
-<p>Managed network address translation (NAT) gateways to allow outbound
-internet access for resources in the private subnets.*</p>
+<p>A Kinesis function to read agent events from your Amazon Connect instance and categorize them as spans of signed-in or signed-out time.</p>
 </li>
 <li>
-<p>A Linux bastion host in an Auto Scaling group to allow inbound Secure
-Shell (SSH) access to Amazon Elastic Compute Cloud (Amazon EC2) instances in public and private subnets.*</p>
+<p>An update function, invoked by an Amazon CloudWatch scheduled event, to write output objects to an Amazon Kinesis Data Firehose output stream. This ensures that the agent productivity S3 bucket is updated during periods of time when no agents are signed in.</p>
 </li>
 </ul>
 </div>
 </li>
 <li>
-<p>In the private subnets:</p>
-<div class="ulist">
-<ul>
-<li>
-<p>&lt;item&gt;.</p>
+<p>A Cloudwatch scheduled event to call the update Lambda function every five minutes.</p>
 </li>
 <li>
-<p>&lt;item&gt;.</p>
-</li>
-</ul>
-</div>
-</li>
-<li>
-<p>&lt;describe any additional components&gt;.</p>
+<p>A Kinesis Data Firehouse output stream to write the output of the Lambda functions to the agent productivity S3 bucket.</p>
 </li>
 </ul>
 </div>
 <div class="paragraph">
-<p><span class="small">* The template that deploys this Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.</span></p>
+<p>Deploying <strong>Alvaria RTA integration</strong> builds the following Workforce Management environment in the
+AWS Cloud.</p>
+</div>
+<div id="architecture2" class="imageblock">
+<div class="content">
+<img src="docs/deployment_guide/images/architecture_diagram_2.png" alt="Architecture">
+</div>
+<div class="title">Figure 2. Architecture for Workforce Management agent Alvaria RTA integration integration on AWS</div>
+</div>
+<div class="paragraph">
+<p>As shown in <a href="#architecture2">Figure 2</a>, Alvaria RTA integration sets up the following:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>Amazon Connect to write events to an agent event data stream, which invokes an AWS Lambda function.</p>
+</li>
+<li>
+<p>A Lambda function, invoked by Amazon Connect, to update an Amazon DynamoDB table and Amazon SImple Queue Service (Amazon SQS) queue.</p>
+</li>
+<li>
+<p>A DynamoDB table to hold the latest state change for each agent signed into your Amazon Connect instance.</p>
+</li>
+<li>
+<p>An SQS queue to relay Amazon Connect agent state changes to Alvaria Real-Time Adherence (RTA).</p>
+</li>
+<li>
+<p>An AWS Identity and Access Management (IAM) user to provide Alvaria RTA with the following (not shown):</p>
+<div class="ulist">
+<ul>
+<li>
+<p>Read-only access to the DynamoDB table.</p>
+</li>
+<li>
+<p>Read/write access to the SQS queue.</p>
+</li>
+<li>
+<p>Access to update the configuration of the Lambda function.</p>
+</li>
+</ul>
+</div>
+</li>
+</ul>
 </div>
 </div>
 </div>
@@ -994,25 +1032,76 @@ Shell (SSH) access to Amazon Elastic Compute Cloud (Amazon EC2) instances in pub
 <div class="paragraph">
 <p>This Partner Solution provides the following deployment options:</p>
 </div>
+<div class="sect2">
+<h3 id="_deploy_alvaria_wfm_with_a_new_kinesis_data_stream">Deploy Alvaria WFM with a new Kinesis data stream</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Sign in to your AWS account. If you don&#8217;t have an account, sign up at <a href="https://aws.amazon.com" class="bare">https://aws.amazon.com</a>. An AWS account automatically signs you up for Amazon Connect and all other AWS services.</p>
+</li>
+<li>
+<p><a href="http://docs.aws.amazon.com/connect/latest/adminguide/gettingstarted.html#launch-contact-center">Create a new Amazon Connect instance</a> or <a href="https://console.aws.amazon.com/connect/">use an existing instance</a>.</p>
+</li>
+<li>
+<p>Launch the Partner Solution. The stack takes a few minutes to deploy. Before you create the stack, choose the AWS Region of your Amazon Connect instance from the top toolbar. Choose one of the following options:</p>
 <div class="ulist">
 <ul>
 <li>
-<p><a href="https://qs_launch_permalink" target="_blank" rel="noopener">Deploy Product Name into a new VPC</a>. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys Product Name into this new VPC.</p>
+<p><a href="https://fwd.aws/rXVxr?">Deploy with agent productivity integration</a></p>
 </li>
 <li>
-<p><a href="https://qs_launch_permalink" target="_blank" rel="noopener">Deploy Product Name into an existing VPC</a>. This option provisions Product Name in your existing AWS infrastructure.</p>
+<p><a href="https://fwd.aws/vz4PA?">Deploy with Alvaria RTA integration</a></p>
+</li>
+<li>
+<p><a href="https://fwd.aws/krMqr?">Deploy with both integration options</a></p>
 </li>
 </ul>
 </div>
-<div class="paragraph">
-<p>This Partner Solution provides separate templates for these options. It also lets you configure Classless Inter-Domain Routing (CIDR) blocks, instance types, and Product Name settings.</p>
+</li>
+<li>
+<p><a href="https://docs.aws.amazon.com/connect/latest/adminguide/data-streaming.html">Enable data streaming for your Amazon Connect instance</a>.</p>
+</li>
+<li>
+<p><a href="https://docs.aws.amazon.com/connect/latest/adminguide/agent-event-streams-enable.html">Enable agent event streams</a>.</p>
+</li>
+</ol>
 </div>
 </div>
+<div class="sect2">
+<h3 id="_deploy_alvaria_wfm_with_an_existing_kinesis_data_stream">Deploy Alvaria WFM with an existing Kinesis data stream</h3>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+<p>Sign in to your AWS account. If you don&#8217;t have an account, sign up at <a href="https://aws.amazon.com" class="bare">https://aws.amazon.com</a>. An AWS account automatically signs you up for Amazon Connect and all other AWS services.</p>
+</li>
+<li>
+<p><a href="http://docs.aws.amazon.com/connect/latest/adminguide/gettingstarted.html#launch-contact-center">Create a new Amazon Connect instance</a> or <a href="https://console.aws.amazon.com/connect/">use an existing instance</a>.</p>
+</li>
+<li>
+<p><a href="https://docs.aws.amazon.com/connect/latest/adminguide/data-streaming.html">Enable data streaming for your Amazon Connect instance</a>. Ensure that you select your Kinesis data stream.</p>
+</li>
+<li>
+<p>In the <a href="https://us-east-1.console.aws.amazon.com/kinesis/">Amazon Kinesis Data Streams console</a>, note the Amazon Resource Name (ARN) of the Kinesis data stream you select in step 3. Input the data stream ARN in the Agent Event Kinesis Stream ARN parameter during deployment.</p>
+</li>
+<li>
+<p>Launch the Partner Solution. The stack takes a few minutes to deploy. Before you create the stack, choose the AWS Region of your Amazon Connect instance from the top toolbar. Choose one of the following options:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><a href="https://fwd.aws/qWDeQ?">Deploy with agent productivity integration</a></p>
+</li>
+<li>
+<p><a href="https://fwd.aws/KWkzd?">Deploy with Alvaria RTA integration</a></p>
+</li>
+<li>
+<p><a href="https://fwd.aws/MQdDe?">Deploy with both integration options</a></p>
+</li>
+</ul>
 </div>
-<div class="sect1">
-<h2 id="_predeployment_steps">Predeployment steps</h2>
-<div class="sectionbody">
-
+</li>
+</ol>
+</div>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -1054,19 +1143,13 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 <p>Choose <strong>Create stack</strong>. The stack takes about 15 minutes to deploy.</p>
 </li>
 <li>
-<p>Monitor the stack&#8217;s status, and when the status is <strong>CREATE_COMPLETE</strong>, the Full Product Name deployment is ready.</p>
+<p>Monitor the stack&#8217;s status, and when the status is <strong>CREATE_COMPLETE</strong>, the Alvaria Workforce Management deployment is ready.</p>
 </li>
 <li>
 <p>To view the created resources, choose the <strong>Outputs</strong> tab.</p>
 </li>
 </ol>
 </div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_postdeployment_steps">Postdeployment steps</h2>
-<div class="sectionbody">
-
 </div>
 </div>
 <div class="sect1">
@@ -1124,9 +1207,9 @@ Unless you&#8217;re customizing the Partner Solution templates or are instructed
 <footer>
     <p class="footer-text">
         <!-- We can use document attributes: -->
-        <!-- Generated with Asciidoctor v2.0.20. -->
+        <!-- Generated with Asciidoctor v2.0.16. -->
         <a href="https://aws.amazon.com/privacy/">Privacy</a> | <a href="https://aws.amazon.com/terms/">Site terms</a> |
-        &copy; {current-year}, Amazon Web Services, Inc. or its affiliates and Example Company Name, Ltd.. All rights reserved.
+        &copy; 2024, Amazon Web Services, Inc. or its affiliates and Alvaria Software. All rights reserved.
     </p>
 </footer>
 </body>
