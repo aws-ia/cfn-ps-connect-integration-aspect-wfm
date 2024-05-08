@@ -1,10 +1,5 @@
-This guide covers the information you need to deploy the {partner-product-name} Partner Solution in the AWS Cloud.
+This Amazon Web Services (AWS) Partner Solution deploys https://www.alvaria.com/products/workforce-engagement-management/call-center-workforce-management[Alvaria Workforce Management (WFM)] integration with Amazon Connect. During deployment, you can choose one or both of the following Alvaria WFM integration options:
 
-// Fill in the info in <angle brackets> for use on the landing page only: 
-This Amazon Web Services (AWS) Partner Solution deploys [<product name>](<partner's marketing product page>) in the AWS Cloud so that <purpose>. This solution is for <target users> who want to <do what> so that <why>. For more information, refer to the [<product name> documentation](<URL>).
-
-// Deploying this solution does not guarantee an organization’s compliance with any laws, certifications, policies, or other regulations. [Uncomment this statement only for solutions that relate to compliance. We'll add the corresponding reference part to the landing page and get legal approval before publishing.]
-
-// For advanced information about the product, troubleshooting, or additional functionality, refer to the https://{partner-solution-github-org}.github.io/{partner-solution-project-name}/operational/index.html[Operational Guide^].
-
-// For information about using this Partner Solution for migrations, refer to the https://{partner-solution-github-org}.github.io/{partner-solution-project-name}/migration/index.html[Migration Guide^].
+* *Agent productivity*: This option enhances standard Amazon Connect reports with agent-productivity statistics including average positions staffed (APS) by agent group, available time by agent, unavailable time by agent, and sign-in/sign-out pairs by agent. You specify Alvaria WFM to treat Amazon Connect agent status labels (such as "break" or "project") as available, productive, signed-in, or signed-out. 
+* *Alvaria Real-Time Adherence (RTA)*: Choose this option to provide information about Amazon Connect agent state changes to Alvaria RTA. Alvaria RTA monitors Amazon Connect agent adherence to schedules. 
+Both integration options use a single Amazon Connect agent event stream. You can choose to deploy the solution with a new or existing https://docs.aws.amazon.com/streams/latest/dev/introduction.html[Amazon Kinesis data stream] for this purpose. The deployment sizes the Kinesis data stream with a single shard. You can adjust the shard count for your agent event rate and number of consumers (agent productivity, Alvaria RTA, or custom agent-event readers). For more information, refer to the https://help.aspect.com/go/aspect/premiseportfolio.wem.wfintamzconnectconfig.workforceintegrationamazonconnectconfig[Alvaria Workforce Integrations for Amazon Connect Configuration Guide].

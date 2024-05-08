@@ -2,7 +2,25 @@
 
 This Partner Solution provides the following deployment options:
 
-* https://qs_launch_permalink[Deploy {partner-product-short-name} into a new VPC^]. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys {partner-product-short-name} into this new VPC.
-* https://qs_launch_permalink[Deploy {partner-product-short-name} into an existing VPC^]. This option provisions {partner-product-short-name} in your existing AWS infrastructure.
+=== Deploy Alvaria WFM with a new Kinesis data stream
 
-This Partner Solution provides separate templates for these options. It also lets you configure Classless Inter-Domain Routing (CIDR) blocks, instance types, and {partner-product-short-name} settings.
+1. Sign in to your AWS account. If you don't have an account, sign up at https://aws.amazon.com. An AWS account automatically signs you up for Amazon Connect and all other AWS services.
+2. http://docs.aws.amazon.com/connect/latest/adminguide/gettingstarted.html#launch-contact-center[Create a new Amazon Connect instance] or https://console.aws.amazon.com/connect/[use an existing instance].
+3. Launch the Partner Solution. The stack takes a few minutes to deploy. Before you create the stack, choose the AWS Region of your Amazon Connect instance from the top toolbar. Choose one of the following options:
+* https://fwd.aws/rXVxr?[Deploy with agent productivity integration]
+* https://fwd.aws/vz4PA?[Deploy with Alvaria RTA integration]
+* https://fwd.aws/krMqr?[Deploy with both integration options]
+[start=4]
+4. https://docs.aws.amazon.com/connect/latest/adminguide/data-streaming.html[Enable data streaming for your Amazon Connect instance].
+5. https://docs.aws.amazon.com/connect/latest/adminguide/agent-event-streams-enable.html[Enable agent event streams].
+
+=== Deploy Alvaria WFM with an existing Kinesis data stream
+
+1. Sign in to your AWS account. If you don't have an account, sign up at https://aws.amazon.com. An AWS account automatically signs you up for Amazon Connect and all other AWS services.
+2. http://docs.aws.amazon.com/connect/latest/adminguide/gettingstarted.html#launch-contact-center[Create a new Amazon Connect instance] or https://console.aws.amazon.com/connect/[use an existing instance].
+3. https://docs.aws.amazon.com/connect/latest/adminguide/data-streaming.html[Enable data streaming for your Amazon Connect instance]. Ensure that you select your Kinesis data stream.
+4. In the https://us-east-1.console.aws.amazon.com/kinesis/[Amazon Kinesis Data Streams console], note the Amazon Resource Name (ARN) of the Kinesis data stream you select in step 3. Input the data stream ARN in the Agent Event Kinesis Stream ARN parameter during deployment.
+5. Launch the Partner Solution. The stack takes a few minutes to deploy. Before you create the stack, choose the AWS Region of your Amazon Connect instance from the top toolbar. Choose one of the following options:
+* https://fwd.aws/qWDeQ?[Deploy with agent productivity integration]
+* https://fwd.aws/KWkzd?[Deploy with Alvaria RTA integration]
+* https://fwd.aws/MQdDe?[Deploy with both integration options]
