@@ -1,4 +1,4 @@
-:partner-solution-project-name: partner-solution-repo-name
+:partner-solution-project-name: cfn-ps-connect-integration-aspect-wfm
 :partner-solution-github-org: aws-ia
 :partner-product-name: Alvaria Workforce Management
 :partner-product-short-name: Workforce Management
