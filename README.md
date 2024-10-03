@@ -1,4 +1,9 @@
 # connect-integration-aspect-wfm
+## Deprecation Notice
+
+:x: This repository is subject to deprecation in Q4 2024. For more details, [please review this announcement](https://github.com/aws-ia/.announcements/issues/1). 
+
+
 ## Amazon Connect Integration for Aspect WFM
 
 This Quick Start configures resources to provide integration between Amazon Connect and Aspect Workforce Management (WFM) in a few easy steps. 
